@@ -1,4 +1,5 @@
-﻿create table public.order_admins (
+begin;
+create table public.order_admins (
   user_id uuid primary key references auth.users(id) on delete cascade
 );
 create table public.orders (
@@ -45,3 +46,4 @@ begin
 end $$;
 revoke all on function public.claim_order_email(uuid) from public, anon, authenticated;
 grant execute on function public.claim_order_email(uuid) to service_role;
+commit;
