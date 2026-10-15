@@ -1,0 +1,513 @@
+@charset "UTF-8";
+
+/**
+ * 收藏弹层样式。
+ * 规格来自 Figma PC-Header 业务需求（弹层 350 / padding 16 / 圆角 12）。
+ * 新样式一律使用逻辑属性（margin-inline-* / padding-inline-*），postbuild 的
+ * css-logical-converter 仅作历史兜底，不要依赖它转换新写法。
+ */
+
+.header-favorite {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  inline-size: 350px;
+  flex-direction: column;
+  padding: 16px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 10px 0 rgba(0, 0, 0, 0.07), 0 0 5px 0 rgba(0, 0, 0, 0.05);
+  color: #222;
+  font-size: 12px;
+  gap: 12px;
+  line-height: 16px;
+}
+
+.header-favorite * {
+  box-sizing: border-box;
+}
+
+.header-favorite a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.header-favorite img {
+  display: block;
+}
+
+/**
+ * 指向爱心图标的小三角：与面板同色，视觉上是面板顶边的一处凸起。
+ * 默认贴结束边（逻辑属性，RTL 自动镜像）；传 arrowAnchor 时由 panel.tsx 用行内 left 覆盖。
+ * 实现是「旋转方块 + 外层裁切」：外层只留 10px 高，方块转 45° 后露出的正好是三角，
+ * 底边落在面板内 1px，避免与面板之间出现亚像素缝隙。
+ */
+
+.favorite-arrow {
+  position: absolute;
+  inset-inline-end: 24px;
+  top: -7px;
+  inline-size: 16px;
+  height: 8px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.favorite-arrow::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 2.5px;
+  top: 2.5px;
+  inline-size: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: #fff;
+  transform: rotate(45deg);
+}
+
+.favorite-title {
+  color: #222;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 22px;
+}
+
+.favorite-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 分区分割线：设计稿 1px #DDDDDD，40% 透明 */
+
+.favorite-divider {
+  height: 1px;
+  background: #ddd;
+  opacity: 0.4;
+}
+
+.favorite-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.favorite-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.favorite-section-title {
+  overflow: hidden;
+  color: #222;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 设计稿 #2554-13678：View all 为 #222222（非链接蓝）。卡片/View all 均为 <a>，
+   宿主页面全局链接色（如 .compare-page a）会穿透组件内的 a { color: inherit }
+   防御——继承色永远输给直接命中 a 的规则，必须用直接命中且更高特异性的选择器 */
+
+.header-favorite .favorite-view-all {
+  color: #222;
+}
+
+.favorite-view-all {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.favorite-view-all:hover {
+  text-decoration: underline;
+}
+
+/* RTL 下箭头指向需翻转 */
+
+[dir=rtl] .favorite-arrow-icon {
+  transform: scaleX(-1);
+}
+
+.favorite-section-tip {
+  color: #666;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.favorite-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---------- 卡片（商品 / 商家共用骨架） ---------- */
+
+/* 卡片本身是 <a>，显式声明 #222 直接命中 a 元素，防御宿主全局链接色污染
+   （如对比页的 .compare-page a）；卡片内文字继承此色 */
+
+.header-favorite .favorite-card {
+  color: #222;
+}
+
+.favorite-card {
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  gap: 12px;
+  /* hover 口径对齐收藏夹列表页：标题/公司名不变色，仅文字出下划线。
+     下划线收在文字 span 上（同收藏夹页供应商卡 .favx-company-name-text）：
+     标签为原子内联盒，父级下划线会横穿其下方，故不挂在标题容器上 */
+}
+
+.favorite-card:hover .favorite-product-title-text,
+.favorite-card:hover .favorite-supplier-name-text {
+  text-decoration: underline;
+}
+
+.favorite-card-media {
+  position: relative;
+  overflow: hidden;
+  inline-size: 68px;
+  height: 68px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.04);
+  /* 图片遮罩（商品图 / 公司 logo 同口径）：常驻 4% 黑纱覆盖在图上方，
+     对齐收藏夹页商品卡 .product-img::after；容器 overflow:hidden 自动裁圆角。
+     注意与容器 background 区分：background 是破图时的垫底灰底，本层才是遮罩 */
+}
+
+.favorite-card-media::after {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.04);
+  content: "";
+  pointer-events: none;
+}
+
+.favorite-card-media {
+  /* 嵌套提升特异性，防宿主 `.host img { height: auto }` 类 reset 穿透 */
+}
+
+.header-favorite .favorite-card-media img {
+  inline-size: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.favorite-card-main {
+  display: flex;
+  min-inline-size: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---------- 商品 ---------- */
+
+.favorite-product-title {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #222;
+  font-size: 12px;
+  line-height: 16px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* 业务标签（标题/公司名行内），样式口径对齐收藏夹页商品列表 .title-tag。
+   间距用逻辑属性（margin-inline-*），RTL 页面下自动翻转 */
+
+.favorite-title-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  height: 16px;
+  padding: 0 4px;
+  margin-inline-end: 4px;
+  border-radius: 2px;
+  vertical-align: text-bottom;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  /* 裸元素标签（needContainer=false，必为纯图标）：无背景/内边距/圆角/定高 */
+}
+
+.favorite-title-tag.favorite-title-tag--bare {
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* 图标尺寸完全由服务端下发的 width/height 属性决定（下发即展示尺寸，
+   如 Super 标 40×16），CSS 不做尺寸覆盖——口径对齐收藏夹页商品卡
+   .title-tag img。此前强制 16px 定高会把设计高度更小的标（如 Guaranteed）
+   放大。嵌套 .header-favorite 提升特异性，防宿主 img reset 穿透 */
+
+.header-favorite .favorite-title-tag-icon {
+  display: block;
+  object-fit: contain;
+}
+
+/* 图标 + 文字并存时，图标在起始端、文字在结束端，二者留间距 */
+
+.favorite-title-tag-icon + .favorite-title-tag-text {
+  margin-inline-start: 4px;
+}
+
+.favorite-product-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.favorite-price-current {
+  color: #222;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.favorite-product-moq {
+  color: #767676;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* ---------- 商家 ---------- */
+
+.favorite-supplier-name {
+  overflow: hidden;
+  color: #222;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favorite-supplier-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  color: #666;
+  font-size: 12px;
+  line-height: 16px;
+  gap: 4px;
+}
+
+/* 金品认证标：height 定高、width 等比（口径对齐收藏夹页商品列表 .verify-icon） */
+
+/* 嵌套 .header-favorite 提升特异性，防宿主 `.host img { height: auto }` 类
+   reset 穿透后金品图标按切图原始尺寸 158×64 直出 */
+
+.header-favorite .favorite-gold-supplier {
+  height: 11px;
+  inline-size: auto;
+}
+
+.favorite-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.favorite-fact-dot {
+  inline-size: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #666;
+}
+
+/* ---------- 空态 ---------- */
+
+.favorite-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 12px;
+  gap: 4px;
+  text-align: center;
+}
+
+.header-favorite .favorite-empty-img {
+  inline-size: 100px;
+  height: 100px;
+}
+
+.favorite-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.favorite-empty-desc {
+  color: #222;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.favorite-heart-icon {
+  display: inline-block;
+  vertical-align: -1px;
+}
+
+/* ---------- 未登录态 ---------- */
+
+.favorite-signin {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.favorite-signin-tip {
+  display: flex;
+  min-height: 100px;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.favorite-signin-btn {
+  display: flex;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: #d64000;
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.favorite-signin-btn:hover {
+  background: #b83700;
+}
+
+/* ---------- 焦点环（按输入模态） ---------- */
+
+/* reactjs-popup 打开弹层会无条件程序聚焦内容区首个可聚焦元素（focusContentOnOpen，无 prop 关闭），
+   Chrome 把「之前焦点在 body 的程序 focus」判定为 :focus-visible 并画出默认 outline。
+   故组件内可聚焦元素统一去默认环，仅键盘 Tab 模态（useFocusRing 加 .focus-ring）显示自定义环。 */
+
+.favorite-view-all:focus,
+.favorite-card:focus,
+.favorite-signin-btn:focus {
+  outline: none;
+}
+
+.favorite-view-all.focus-ring:focus,
+.favorite-card.focus-ring:focus,
+.favorite-signin-btn.focus-ring:focus {
+  outline: 2px solid #222;
+  outline-offset: 2px;
+}
+
+/* ---------- 骨架屏 ---------- */
+
+/* Skeleton 组件本身只提供流光动画，尺寸与灰底由下列类给出 */
+
+.favorite-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.favorite-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.favorite-skeleton-media {
+  inline-size: 68px;
+  height: 68px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: #f2f2f2;
+}
+
+.favorite-skeleton-texts {
+  display: flex;
+  min-inline-size: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.favorite-skeleton-line {
+  height: 12px;
+  border-radius: 4px;
+  background: #f2f2f2;
+}
+
+.favorite-skeleton-line-short {
+  inline-size: 60%;
+}
+
+.favorite-skeleton-price {
+  inline-size: 40%;
+  height: 14px;
+  border-radius: 4px;
+  background: #f2f2f2;
+}
+
+.header-favorite-loading-container {
+  position: relative;
+  inline-size: 100%;
+  overflow: hidden;
+}
+
+.header-favorite-block {
+  position: absolute;
+  top: -50%;
+  inset-inline-start: -230px;
+  inline-size: 35px;
+  height: 200%;
+  background-color: #ddd;
+  transform: rotate(30deg);
+  opacity: 0.3;
+  box-shadow: 0 0 50px 35px rgb(221, 221, 221);
+  /* Simulate Feathering effect */
+  filter: blur(20px);
+  animation: moveHeaderFavoriteBlock 3s linear infinite;
+  animation-timing-function: cubic-bezier(0, 0, 0.75, 0.75);
+}
+
+.header-favorite-block:nth-child(2) {
+  animation-delay: 1s;
+}
+
+.header-favorite-block:nth-child(3) {
+  animation-delay: 2s;
+}
+
+@keyframes moveHeaderFavoriteBlock {
+  0% {
+    transform: translateX(0) rotate(30deg);
+  }
+
+  100% {
+    transform: translateX(1000px) rotate(30deg);
+  }
+}
+
+/*$vite$:1*/
