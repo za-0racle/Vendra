@@ -20,16 +20,32 @@ function el(tag,text){const node=document.createElement(tag);if(text!==undefined
 function render(){
  $('metric-total').textContent=orders.length;$('metric-new').textContent=orders.filter(o=>o.status==='new').length;$('metric-delivered').textContent=orders.filter(o=>o.status==='delivered').length;$('metric-value').textContent=money(orders.filter(o=>o.status!=='cancelled').reduce((n,o)=>n+o.total,0));
  const query=$('search').value.toLowerCase().trim(),status=$('filter-status').value;
- const filtered=orders.filter(o=>(!status||o.status===status)&&[o.name,o.phone,o.email,o.address,o.id].some(v=>v.toLowerCase().includes(query)));
+ const filtered=orders.filter(o=>(!status||o.status===status)&&[o.name,o.phone,o.email,o.address,o.order_number||'',o.id].some(v=>v.toLowerCase().includes(query)));
  const rows=filtered.map(order=>{
   const tr=el('tr'),reference=el('td'),customer=el('td'),packageCell=el('td',order.quantity+' scrubber'+(order.quantity>1?'s':'')),total=el('td',money(order.total)),state=el('td'),email=el('td');
-  const ref=el('div',order.id);ref.className='reference';reference.append(ref,el('small',new Date(order.created_at).toLocaleString('en-GH',{timeZone:'Africa/Accra'})));
+  const ref=el('div',order.order_number||order.id);ref.className='reference';reference.append(ref,el('small',new Date(order.created_at).toLocaleString('en-GH',{timeZone:'Africa/Accra'})));
   customer.append(el('strong',order.name),el('small',order.phone));if(order.email)customer.append(el('small',order.email));customer.append(el('small',order.address));
   const select=el('select');select.setAttribute('aria-label','Status for order '+order.id);
   for(const status of statuses){const option=el('option',status);option.value=status;select.append(option);}select.value=order.status;
-  select.addEventListener('change',async()=>{select.disabled=true;const previous=order.status;try{await admin('PATCH',{id:order.id,status:select.value});order.status=select.value;message('dashboard-message','Order status updated.');render();}catch(error){select.value=previous;message('dashboard-message',error.message,true);}finally{select.disabled=false;}});state.append(select);
+  select.addEventListener('change',async()=>{select.disabled=true;const previous=order.status;try{await admin('PATCH',{id:order.id,status:select.value});order.status=select.value;await loadOrders();message('dashboard-message','Order status updated.');}catch(error){select.value=previous;message('dashboard-message',error.message,true);}finally{select.disabled=false;}});state.append(select);
+  email.append(el('strong','Admin notification'));
   email.append(el('div',({sent:'Accepted by Resend',failed:'Notification failed',pending:'Pending',sending:'Sending'})[order.email_status]||order.email_status));
   if(order.email_status!=='sent'){const retry=el('button','Retry notification');retry.className='secondary retry';retry.addEventListener('click',async()=>{retry.disabled=true;try{await admin('POST',{id:order.id,action:'retry-email'});await loadOrders();message('dashboard-message','Notification accepted by Resend.');}catch(error){message('dashboard-message',error.message,true);}finally{retry.disabled=false;}});email.append(retry);}
+  if(order.email_error)email.append(el('small',order.email_error));
+  email.append(el('strong','Customer emails'));
+  if(!order.email)email.append(el('small','Email not supplied'));
+  else{
+   const notifications=order.order_customer_notifications||[];
+   const received=notifications.find(n=>n.event==='received');
+   email.append(el('small',received?.state==='sent'?'Confirmation accepted by Resend':received?.state==='failed'?'Confirmation failed':'Confirmation pending'));
+   const retryEvents=notifications.filter(n=>n.state!=='sent');if(!received)retryEvents.unshift({event:'received',state:'pending'});
+   for(const notification of notifications.filter(n=>n.event!=='received'))email.append(el('small',notification.event.replace('status-','')+': '+notification.state));
+   for(const notification of retryEvents){
+    if(notification.error)email.append(el('small',notification.error));
+    const button=el('button','Retry '+(notification.event==='received'?'confirmation':notification.event.replace('status-','')+' email'));button.className='secondary retry';
+    button.addEventListener('click',async()=>{button.disabled=true;try{await admin('POST',{id:order.id,action:'retry-customer-email',event:notification.event});await loadOrders();message('dashboard-message','Customer email accepted by Resend.');}catch(error){message('dashboard-message',error.message,true);}finally{button.disabled=false;}});email.append(button);
+   }
+  }
   tr.append(reference,customer,packageCell,total,state,email);return tr;
  });
  $('orders-body').replaceChildren(...rows);$('empty').hidden=filtered.length!==0;

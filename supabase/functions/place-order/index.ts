@@ -1,4 +1,4 @@
-﻿import {validateOrder,sameOrder,notifyOrder} from '../_shared/orders.js';
+﻿import {validateOrder,sameOrder,notifyOrder,notifyCustomer,reference,trackingUrl} from '../_shared/orders.js';
 import {env,configured,cors,json,readBody,rest,store} from '../_shared/http.ts';
 Deno.serve(async(req:Request)=>{
  if(!cors(req))return json(req,403,{error:'This request origin is not allowed.'});
@@ -14,7 +14,9 @@ Deno.serve(async(req:Request)=>{
   const saved=await rest('orders?on_conflict=request_key','POST',order,'resolution=ignore-duplicates,return=representation');
   const row=saved[0]||(await rest(`orders?request_key=eq.${order.request_key}&select=*`))[0];
   if(!row||!sameOrder(row,order))return json(req,409,{error:'Your order details changed. Reload the page and submit again.'});
-  if(saved.length)await notifyOrder(row,{store,env});
-  return json(req,201,{id:row.id,total:row.total,message:'Your order has been received. Vendrahub will contact you to confirm delivery and payment arrangements.'});
+  if(saved.length)await Promise.allSettled([notifyOrder(row,{store,env}),notifyCustomer(row,'received',{store,env})]);
+  let customer_email_status=row.email?'pending':'not_requested';
+  if(row.email){try{customer_email_status=(await rest(`order_customer_notifications?order_id=eq.${row.id}&event=eq.received&select=state`))[0]?.state||'pending';}catch{/* Confirmation can be retried in the admin dashboard. */}}
+  return json(req,201,{id:row.id,order_number:reference(row),tracking_url:trackingUrl(row,env),customer_email_status,total:row.total,message:'Your order has been received. Vendrahub will contact you to confirm delivery and payment arrangements.'});
  }catch{return json(req,500,{error:'Unable to process your order. Please try again.'});}
 });

@@ -1,4 +1,4 @@
-﻿export const env=Object.fromEntries(['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','RESEND_API_KEY','EMAIL_FROM','ORDER_EMAIL','ALLOWED_ORIGINS','RATE_LIMIT_SALT'].map(key=>[key,Deno.env.get(key)||'']));
+﻿export const env=Object.fromEntries(['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','RESEND_API_KEY','EMAIL_FROM','ORDER_EMAIL','ALLOWED_ORIGINS','RATE_LIMIT_SALT','SITE_URL'].map(key=>[key,Deno.env.get(key)||'']));
 export const configured=()=>Boolean(env.RESEND_API_KEY&&env.EMAIL_FROM&&env.RATE_LIMIT_SALT);
 export function cors(req:Request){
  const origin=req.headers.get('origin')||'';
@@ -18,4 +18,9 @@ export async function rest(path:string,method='GET',body?:unknown,prefer?:string
  const response=await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`,{method,headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,'Content-Type':'application/json',...(prefer?{Prefer:prefer}:{})},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(10000)});
  if(!response.ok)throw new Error('Database request failed');const text=await response.text();return text?JSON.parse(text):null;
 }
-export const store={claim:async(id:string)=>await rest('rpc/claim_order_email','POST',{p_id:id}),patch:async(id:string,fields:unknown)=>await rest(`orders?id=eq.${encodeURIComponent(id)}`,'PATCH',fields)};
+export const store={
+ claim:async(id:string)=>await rest('rpc/claim_order_email','POST',{p_id:id}),
+ patch:async(id:string,fields:unknown)=>await rest(`orders?id=eq.${encodeURIComponent(id)}`,'PATCH',fields),
+ claimCustomer:async(id:string,event:string)=>await rest('rpc/claim_customer_notification','POST',{p_order_id:id,p_event:event}),
+ patchCustomer:async(id:string,event:string,fields:unknown)=>await rest(`order_customer_notifications?order_id=eq.${encodeURIComponent(id)}&event=eq.${encodeURIComponent(event)}`,'PATCH',fields)
+};

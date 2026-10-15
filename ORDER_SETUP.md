@@ -2,6 +2,20 @@
 
 The storefront is `index.html`; order management is `admin.html` (visit `/admin.html`). Vercel serves the frontend. Supabase stores orders and authorizes admins. Supabase Edge Functions notify `contact@vendrahub.com` through Resend. WhatsApp links are for enquiries only.
 
+## Customer tracking update — deploy this version in order
+
+1. Run ONLY the new migration supabase/migrations/202610150002_customer_tracking.sql in the Supabase SQL editor. Do not rerun the original migration. This adds VH000001-style references, separate delivery fields, private tracking tokens, customer-notification records, and safe email-error codes. Existing UUIDs and orders stay intact.
+2. Regenerate dashboard copies with npm run prepare:dashboard. Replace and redeploy place-order and admin-orders from supabase/dashboard/. Create and deploy the third function track-order using supabase/dashboard/track-order.ts. Keep gateway Verify JWT off for all three; admin access remains checked inside admin-orders.
+3. Resend must have vendrahub.com verified to send to arbitrary customer addresses. A sender in testing mode may deliver to the account owner but reject other recipients; the dashboard now displays failed customer notifications and safe provider error codes. Keep ORDER_EMAIL as your chosen receiving Gmail inbox if configured that way. SITE_URL is optional and defaults to https://vendrahub.com.
+4. Deploy the frontend to Vercel. It now builds index.html, admin.html, and track.html. Static brand icons are copied at stable root URLs for social metadata.
+5. Test an order with an email, one without, a private tracking link, and an admin status change. Old orders with an email can receive their first confirmation using Retry confirmation in the updated dashboard.
+
+The tracking page shows admin-entered order status, not courier GPS or an invented arrival date. Its private UUID token is in the URL fragment, and the public API returns only order reference, status, package, total, and creation date. The short VH reference alone cannot retrieve a customer's order.
+
+Customer confirmation emails and each first transition to a status have independent, retryable notification records. A failed customer email never erases the order or blocks the admin notification. Resend accepts the email request; inbox delivery remains subject to the provider and recipient. Do not treat an accepted request as proof of delivery.
+
+Ghana region and capital suggestions use https://lgs.gov.gh/regions/; Other town / city keeps locations outside the suggestions orderable.
+
 ## Production connection checklist
 
 - Frontend: https://vendrahub.com/ (Vercel); admin: https://vendrahub.com/admin.
@@ -44,7 +58,7 @@ The storefront is `index.html`; order management is `admin.html` (visit `/admin.
 
 ## Connect Vercel
 
-Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel. Use the publishable/anon key, not a secret/service-role key. Select Vite, build command `npm run build`, output directory `dist`. Redeploy after changing these values. Both HTML pages are build entrypoints.
+Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel. Use the publishable/anon key, not a secret/service-role key. Select Vite, build command `npm run build`, output directory `dist`. Redeploy after changing these values. The shop, admin, and tracking HTML pages are build entrypoints.
 
 Use Node.js 24 or newer for development and builds.
 

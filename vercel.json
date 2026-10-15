@@ -1,6 +1,15 @@
-﻿{
+{
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [{"source": "/admin", "destination": "/admin.html"}]
+  "rewrites": [
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/track",
+      "destination": "/track.html"
+    }
+  ]
 }
