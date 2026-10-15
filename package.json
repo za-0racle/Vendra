@@ -4,11 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "vite --configLoader native",
+    "build": "vite build --configLoader native",
+    "preview": "vite preview --configLoader native",
+    "test": "node --test --test-isolation=none tests/*.test.mjs"
   },
   "devDependencies": {
     "vite": "^8.3.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
   }
 }
