@@ -26,7 +26,7 @@ export async function notifyOrder(order,{store,fetcher=fetch,env}){
  if(!await store.claim(order.id))return;
  const text=`New Vendrahub order: ${reference(order)}\nName: ${order.name}\nPhone: ${order.phone}\nEmail: ${order.email||'Not supplied'}\nAddress: ${order.address}\nPackage: ${order.quantity} scrubber(s)\nTotal: GH₵ ${order.total}\nDelivery: Free\n\nTrack this order in the Vendrahub admin page.`;
  try{
-  const id=await sendResend({to:[env.ORDER_EMAIL||'contact@vendrahub.com'],subject:`New order ${reference(order)} — ${order.quantity} scrubber(s)`,text,...(order.email?{reply_to:order.email}:{})},'order-'+order.id,{fetcher,env});
+  const id=await sendResend({to:[env.ORDER_EMAIL||'vendrahub5@gmail.com'],subject:`New order ${reference(order)} — ${order.quantity} scrubber(s)`,text,...(order.email?{reply_to:order.email}:{})},'order-'+order.id,{fetcher,env});
   await store.patch(order.id,{email_status:'sent',email_id:id,email_error:null});
  }catch(error){await store.patch(order.id,{email_status:'failed',email_error:error.message?.startsWith('Resend HTTP')?error.message:'Email service connection failed.'});}
 }

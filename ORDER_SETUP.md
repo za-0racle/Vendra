@@ -1,6 +1,6 @@
 ﻿# Vendrahub orders: Vercel + Supabase + Resend
 
-The storefront is `index.html`; order management is `admin.html` (visit `/admin.html`). Vercel serves the frontend. Supabase stores orders and authorizes admins. Supabase Edge Functions notify `contact@vendrahub.com` through Resend. WhatsApp links are for enquiries only.
+The storefront is `index.html`; order management is `admin.html` (visit `/admin.html`). Vercel serves the frontend. Supabase stores orders and authorizes admins. Supabase Edge Functions notify `vendrahub5@gmail.com` through Resend. WhatsApp links are for enquiries only.
 
 ## Customer tracking update — deploy this version in order
 
@@ -25,7 +25,7 @@ Ghana region and capital suggestions use https://lgs.gov.gh/regions/; Other town
 - In Supabase Authentication > URL Configuration, set Site URL to https://vendrahub.com and add https://vendrahub.com/admin and https://vendrahub.com/admin.html as permitted redirects for future auth email flows.
 - Apply the database migration, create/allowlist the admin user, and deploy both functions. The migration is transactional so a failure does not leave half-created tables.
 - Run npm run check:backend to verify the public Auth connection and custom-domain preflight access. This does not write data or send emails. An end-to-end order test is still needed after deployment.
-- Buying a domain does not create its email inbox: confirm contact@vendrahub.com can receive mail and verify the sending domain in Resend.
+- Order notifications go to `vendrahub5@gmail.com`. Set the deployed Supabase `ORDER_EMAIL` secret to this address; it overrides the code default. Keep `EMAIL_FROM` as a sender verified in Resend.
 
 ## Connect Supabase
 
@@ -40,7 +40,7 @@ Ghana region and capital suggestions use https://lgs.gov.gh/regions/; Other town
 
    - `RESEND_API_KEY`: your transactional API key.
    - `EMAIL_FROM`: a sender address verified in Resend, e.g. `orders@vendrahub.com`.
-   - `ORDER_EMAIL`: `contact@vendrahub.com` (must be an existing inbox; Resend does not create one).
+   - `ORDER_EMAIL`: `vendrahub5@gmail.com` (must be an existing inbox; Resend does not create one).
    - `ALLOWED_ORIGINS`: `https://vendrahub.com,https://www.vendrahub.com,https://vendra-rose.vercel.app` (the configured defaults), plus any additional exact custom-domain origins, comma-separated; no trailing slash. Add `http://localhost:5173` for local development if needed. Preview deployments require explicit origins; no wildcard is used.
    - `RATE_LIMIT_SALT`: a long randomly generated secret for hashing rate-limit identities.
 
@@ -90,3 +90,7 @@ Current storefront: `https://vendrahub.com/`. The Edge Functions accept the apex
 Run `npm run prepare:dashboard` after backend source changes. It generates standalone copies in `supabase/dashboard/` with all shared code included.
 
 In Supabase Edge Functions > Deploy a new function > Via Editor, replace all index.ts contents with the corresponding generated file. Name the functions exactly `place-order` and `admin-orders`, then deploy each. Set the gateway Verify JWT option off for both, matching supabase/config.toml. The admin handler still verifies the user token and administrator membership itself. Do not paste the modular source entrypoints alone: they depend on shared files.
+
+## Scheduled backend health checks
+See CRON_SETUP.md for the secret-protected backend-health function and external scheduler setup. No extra database migration or frontend changes are required.
+

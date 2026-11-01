@@ -10,3 +10,8 @@ for(const name of ['place-order','admin-orders','track-order']){
  fs.writeFileSync(`supabase/dashboard/${name}.ts`,code);
  console.log(`Prepared supabase/dashboard/${name}.ts (standalone; syntax checked)`);
 }
+
+const health=fs.readFileSync('supabase/functions/backend-health/index.ts','utf8').replace(/^\uFEFF/,'');
+new vm.Script(stripTypeScriptTypes(health));
+fs.writeFileSync('supabase/dashboard/backend-health.ts','// Paste this entire file into the backend-health function in Supabase.\n'+health);
+console.log('Prepared supabase/dashboard/backend-health.ts (standalone; syntax checked)');

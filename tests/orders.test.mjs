@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {validateOrder,notifyOrder,notifyCustomer} from '../supabase/functions/_shared/orders.js';
 const input={name:'Ama Mensah',phone:'+233 24 123 4567',email:'ama@example.com',address:'12 Sample Street, Accra',quantity:2,requestKey:'12345678-1234-1234-1234-123456789abc'};
-const secrets={SUPABASE_URL:'https://example.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test-service-key',RESEND_API_KEY:'test-resend-key',EMAIL_FROM:'orders@vendrahub.com',ORDER_EMAIL:'contact@vendrahub.com',ALLOWED_ORIGINS:'https://vendrahub.example',RATE_LIMIT_SALT:'test-random-salt'};
+const secrets={SUPABASE_URL:'https://example.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test-service-key',RESEND_API_KEY:'test-resend-key',EMAIL_FROM:'orders@vendrahub.com',ORDER_EMAIL:'vendrahub5@gmail.com',ALLOWED_ORIGINS:'https://vendrahub.example',RATE_LIMIT_SALT:'test-random-salt',KEEPALIVE_SECRET:'test-only-health-secret-at-least-32-characters'};
 const handlers=[];globalThis.Deno={env:{get:key=>secrets[key]},serve:handler=>handlers.push(handler)};
 await import('../supabase/functions/place-order/index.ts');
 await import('../supabase/functions/admin-orders/index.ts');
 await import('../supabase/functions/track-order/index.ts');
-const [place,admin,track]=handlers;
+await import('../supabase/functions/backend-health/index.ts');
+const [place,admin,track,health]=handlers;
 const origin='https://vendrahub.example';
 const response=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
 function request(method='POST',data=input,extra={}){return new Request('https://example.supabase.co/functions/v1/place-order',{method,headers:{origin,'Content-Type':'application/json',...extra},...(method==='GET'||method==='OPTIONS'?{}:{body:JSON.stringify(data)})});}
@@ -19,7 +20,7 @@ function gateway({mailFail=false,isAdmin=true,validToken=true,limit=true}={}){
    const customer=options.headers['Idempotency-Key'].startsWith('customer-');if(customer)customerEmails++;else emails++;
    assert.equal(options.headers.Authorization,'Bearer '+secrets.RESEND_API_KEY);assert.equal(data.from,'Vendrahub <orders@vendrahub.com>');
    if(customer){assert.equal(data.to[0],rows[0]?.email||input.email);assert.ok(data.text.includes('/track.html#token='));assert.ok(data.html.includes('Track your order'));}
-   else{assert.equal(options.headers['Idempotency-Key'],'order-abcdef01-1234-1234-1234-123456789abc');assert.equal(data.to[0],'contact@vendrahub.com');}
+   else{assert.equal(options.headers['Idempotency-Key'],'order-abcdef01-1234-1234-1234-123456789abc');assert.equal(data.to[0],'vendrahub5@gmail.com');}
    sent.push({data,key:options.headers['Idempotency-Key']});const failed=typeof mailFail==='object'?Boolean(mailFail[customer?'customer':'admin']):mailFail;
    return response(failed?{name:'validation_error'}:{id:'mail-123'},failed?422:201);
   }
@@ -75,3 +76,13 @@ test('admin status change sends the customer a tracking update only once per sta
 test('tracking requires a private token and never returns customer contact details',async()=>{const g=gateway();await place(request());const good=await track(request('POST',{token:g.rows[0].tracking_token}));assert.equal(good.status,200);const {order}=await good.json();assert.equal(order.order_number,'VH000001');for(const field of ['name','phone','email','address','id','tracking_token'])assert.ok(!(field in order));assert.equal((await track(request('POST',{token:'VH000001'}))).status,400);assert.equal((await track(request('POST',{token:'00000000-0000-0000-0000-000000000000'}))).status,404);});
 test('structured Ghana address is validated and safely assembled',()=>{const order=validateOrder({...input,address:undefined,region:'Greater Accra',city:'Tema',street:'12 Sample Road',landmark:'Near the school',digital_address:'GA-123-4567'});assert.equal(order.region,'Greater Accra');assert.ok(order.address.includes('Tema, Greater Accra'));assert.throws(()=>validateOrder({...input,region:'Fake Region',city:'Accra',street:'12 Sample Road'}));assert.throws(()=>validateOrder({...input,region:'Ashanti',city:'',street:'12 Sample Road'}));});
 test('customer HTML escapes customer-provided content',async()=>{let captured;await notifyCustomer({...validateOrder(input),name:'<img src=x onerror=alert(1)>',id:'test',order_number:'VH000002',tracking_token:'11112222-1234-1234-1234-123456789abc'},'received',{env:secrets,store:{claimCustomer:async()=>true,patchCustomer:async()=>{}},fetcher:async(_url,options)=>{captured=JSON.parse(options.body);return response({id:'safe'});}});assert.ok(!captured.html.includes('<img src=x'));assert.ok(captured.html.includes('&lt;img'));});
+
+test('health endpoint rejects missing or incorrect secret before any database call',async()=>{let calls=0;globalThis.fetch=async()=>{calls++;throw new Error('Should not call');};assert.equal((await health(request('GET',null))).status,401);assert.equal((await health(request('GET',null,{authorization:'Bearer wrong'}))).status,401);assert.equal(calls,0);});
+test('health endpoint checks database read-only and returns no order data',async()=>{let calls=0;globalThis.fetch=async(url,options)=>{calls++;assert.ok(url.endsWith('/rest/v1/orders?select=id&limit=1'));assert.equal(options.method,'GET');return response([{id:'private-order-id'}]);};const r=await health(request('GET',null,{authorization:'Bearer '+secrets.KEEPALIVE_SECRET}));assert.equal(r.status,200);const body=await r.json();assert.equal(body.database,'reachable');assert.ok(!JSON.stringify(body).includes('private-order-id'));assert.equal(calls,1);});
+test('health endpoint reports database failure and refuses write methods',async()=>{globalThis.fetch=async()=>response({},500);assert.equal((await health(request('GET',null,{authorization:'Bearer '+secrets.KEEPALIVE_SECRET}))).status,503);assert.equal((await health(request('POST',{}, {authorization:'Bearer '+secrets.KEEPALIVE_SECRET}))).status,405);});
+
+test('order notifications default to the updated Gmail inbox',async()=>{
+ let recipient;
+ await notifyOrder({...validateOrder(input),id:'default-recipient'}, {env:{RESEND_API_KEY:'test',EMAIL_FROM:'orders@vendrahub.com'},store:{claim:async()=>true,patch:async()=>{}},fetcher:async(_url,options)=>{recipient=JSON.parse(options.body).to[0];return response({id:'default-mail'});}});
+ assert.equal(recipient,'vendrahub5@gmail.com');
+});
